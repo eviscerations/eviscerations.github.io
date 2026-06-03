@@ -1,630 +1,593 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Kick Discord Notifier — Auto-notify your Discord when you go live</title>
-  <meta name="description" content="Automatically notify your Discord server the moment you go live on Kick. One setup. Zero maintenance. Built on Kick's official OAuth 2.1 API." />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>eviscerations</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Share+Tech+Mono&family=Noto+Serif+JP:wght@300;400&display=swap');
 
-    :root {
-      --green:   #53fc18;
-      --green-dim: #3bba10;
-      --bg:      #080808;
-      --bg2:     #0f0f0f;
-      --bg3:     #161616;
-      --border:  #222;
-      --text:    #e2e2e2;
-      --muted:   #666;
-      --font-display: 'Bebas Neue', sans-serif;
-      --font-body: 'DM Sans', sans-serif;
-      --font-mono: 'DM Mono', monospace;
-    }
+  :root {
+    --bg: #050507;
+    --bg2: #0a0a0f;
+    --surface: #0d0d14;
+    --border: #1a1a2e;
+    --border-hot: #2a1a3e;
+    --text: #c8c8d8;
+    --text-dim: #5a5a72;
+    --accent: #7b3fe4;
+    --accent-dim: #3d1f72;
+    --accent-glow: rgba(123,63,228,0.15);
+    --red: #c0392b;
+    --mono: 'Share Tech Mono', monospace;
+    --serif: 'Cinzel', serif;
+    --jp: 'Noto Serif JP', serif;
+  }
 
-    html { scroll-behavior: smooth; }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: var(--font-body);
-      font-weight: 300;
-      line-height: 1.6;
-      overflow-x: hidden;
-    }
+  html { scroll-behavior: smooth; }
 
-    /* ── NOISE OVERLAY ── */
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-      pointer-events: none;
-      z-index: 0;
-      opacity: 0.4;
-    }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 14px;
+    line-height: 1.7;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
 
-    /* ── NAV ── */
-    nav {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      z-index: 100;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 20px 48px;
-      border-bottom: 1px solid transparent;
-      transition: border-color 0.3s, background 0.3s;
-    }
-    nav.scrolled {
-      border-color: var(--border);
-      background: rgba(8,8,8,0.92);
-      backdrop-filter: blur(12px);
-    }
-    .nav-logo {
-      font-family: var(--font-display);
-      font-size: 22px;
-      letter-spacing: 2px;
-      color: var(--green);
-    }
-    .nav-cta {
-      font-family: var(--font-mono);
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--bg);
-      background: var(--green);
-      padding: 8px 20px;
-      text-decoration: none;
-      letter-spacing: 0.5px;
-      transition: background 0.2s, transform 0.15s;
-    }
-    .nav-cta:hover { background: var(--green-dim); transform: translateY(-1px); }
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.03) 2px,
+      rgba(0,0,0,0.03) 4px
+    );
+    pointer-events: none;
+    z-index: 1000;
+  }
 
-    /* ── HERO ── */
-    .hero {
-      position: relative;
-      min-height: 100vh; min-height: 100svh;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: flex-start;
-      padding: 120px 48px 160px;
-      overflow: hidden;
-    }
+  /* Noise texture */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    opacity: 0.025;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 999;
+  }
 
-    /* Grid background */
-    .hero::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background-image:
-        linear-gradient(rgba(83,252,24,0.04) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(83,252,24,0.04) 1px, transparent 1px);
-      background-size: 60px 60px;
-      pointer-events: none;
-    }
+  header {
+    padding: 80px 40px 60px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
 
-    /* Green glow blob */
-    .hero-glow {
-      position: absolute;
-      top: 10%;
-      right: -10%;
-      width: 600px;
-      height: 600px;
-      background: radial-gradient(circle, rgba(83,252,24,0.08) 0%, transparent 70%);
-      pointer-events: none;
-    }
+  header::before {
+    content: '';
+    position: absolute;
+    top: -100px;
+    left: -100px;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(123,63,228,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
 
-    .hero-eyebrow {
-      font-family: var(--font-mono);
-      font-size: 12px;
-      font-weight: 500;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-      color: var(--green);
-      margin-bottom: 24px;
-      opacity: 0;
-      transform: translateY(12px);
-      animation: fadeUp 0.6s ease forwards 0.1s;
-    }
+  .header-inner {
+    max-width: 900px;
+    margin: 0 auto;
+  }
 
-    .hero-title {
-      font-family: var(--font-display);
-      font-size: clamp(72px, 11vw, 160px);
-      line-height: 0.9;
-      letter-spacing: 2px;
-      color: #fff;
-      margin-bottom: 32px;
-      opacity: 0;
-      transform: translateY(20px);
-      animation: fadeUp 0.7s ease forwards 0.2s;
-    }
+  .site-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
 
-    .hero-title span { color: var(--green); }
+  .site-label span {
+    color: var(--accent);
+  }
 
-    .hero-sub {
-      max-width: 520px;
-      font-size: 18px;
-      font-weight: 300;
-      color: var(--muted);
-      margin-bottom: 40px;
-      line-height: 1.7;
-      opacity: 0;
-      transform: translateY(20px);
-      animation: fadeUp 0.7s ease forwards 0.35s;
-    }
+  h1 {
+    font-family: var(--serif);
+    font-size: clamp(28px, 5vw, 52px);
+    font-weight: 900;
+    letter-spacing: 0.15em;
+    color: #e8e8f0;
+    line-height: 1.1;
+    margin-bottom: 8px;
+  }
 
-    .hero-sub strong { color: var(--text); font-weight: 500; }
+  .jp-sub {
+    font-family: var(--jp);
+    font-size: 13px;
+    font-weight: 300;
+    color: var(--text-dim);
+    letter-spacing: 0.2em;
+    margin-bottom: 24px;
+  }
 
-    .hero-actions {
-      display: flex;
-      align-items: center;
-      gap: 24px;
-      opacity: 0;
-      transform: translateY(20px);
-      animation: fadeUp 0.7s ease forwards 0.5s;
-    }
+  .header-desc {
+    font-size: 13px;
+    color: var(--text-dim);
+    max-width: 480px;
+    line-height: 1.8;
+  }
 
-    .btn-primary {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      font-family: var(--font-mono);
-      font-size: 15px;
-      font-weight: 500;
-      color: var(--bg);
-      background: var(--green);
-      padding: 16px 36px;
-      text-decoration: none;
-      letter-spacing: 0.5px;
-      position: relative;
-      transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
-    }
-    .btn-primary::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      box-shadow: 0 0 0 0 rgba(83,252,24,0.4);
-      transition: box-shadow 0.3s;
-    }
-    .btn-primary:hover {
-      background: var(--green-dim);
-      transform: translateY(-2px);
-    }
-    .btn-primary:hover::after {
-      box-shadow: 0 8px 32px rgba(83,252,24,0.25);
-    }
+  .header-desc a {
+    color: var(--accent);
+    text-decoration: none;
+    border-bottom: 1px solid var(--accent-dim);
+    transition: border-color 0.2s;
+  }
 
-    .btn-secondary {
-      font-family: var(--font-mono);
-      font-size: 13px;
-      color: var(--muted);
-      text-decoration: none;
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 2px;
-      transition: color 0.2s, border-color 0.2s;
-    }
-    .btn-secondary:hover { color: var(--text); border-color: var(--muted); }
+  .header-desc a:hover { border-color: var(--accent); }
 
-    .hero-stat {
-      position: absolute;
-      bottom: 40px;
-      left: 48px;
-      display: flex;
-      gap: 48px;
-      opacity: 0;
-      animation: fadeUp 0.7s ease forwards 0.7s;
-    }
-    .stat-item { }
-    .stat-num {
-      font-family: var(--font-display);
-      font-size: 36px;
-      color: var(--green);
-      line-height: 1;
-    }
-    .stat-label {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      color: var(--muted);
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      margin-top: 4px;
-    }
+  nav {
+    display: flex;
+    gap: 32px;
+    margin-top: 36px;
+    flex-wrap: wrap;
+  }
 
-    /* ── HOW IT WORKS ── */
-    .section {
-      position: relative;
-      padding: 120px 48px;
-    }
+  nav a {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    text-decoration: none;
+    position: relative;
+    transition: color 0.2s;
+  }
 
-    .section-label {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-      color: var(--green);
-      margin-bottom: 16px;
-    }
+  nav a::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 0;
+    height: 1px;
+    background: var(--accent);
+    transition: width 0.3s;
+  }
 
-    .section-title {
-      font-family: var(--font-display);
-      font-size: clamp(40px, 6vw, 72px);
-      letter-spacing: 1px;
-      color: #fff;
-      margin-bottom: 64px;
-      line-height: 1;
-    }
+  nav a:hover { color: var(--text); }
+  nav a:hover::after { width: 100%; }
 
-    .steps {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 2px;
-    }
+  main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 80px 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 80px;
+  }
 
-    .step {
-      background: var(--bg2);
-      border: 1px solid var(--border);
-      padding: 48px 40px;
-      position: relative;
-      transition: border-color 0.3s, background 0.3s;
-    }
-    .step:hover {
-      border-color: rgba(83,252,24,0.3);
-      background: var(--bg3);
-    }
+  /* Section */
+  .project {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    position: relative;
+    opacity: 0;
+    transform: translateY(20px);
+    animation: reveal 0.6s ease forwards;
+  }
 
-    .step-num {
-      font-family: var(--font-display);
-      font-size: 80px;
-      color: rgba(83,252,24,0.12);
-      line-height: 1;
-      margin-bottom: 24px;
-      transition: color 0.3s;
-    }
-    .step:hover .step-num { color: rgba(83,252,24,0.22); }
+  .project:nth-child(2) { animation-delay: 0.15s; }
 
-    .step-title {
-      font-family: var(--font-display);
-      font-size: 28px;
-      letter-spacing: 1px;
-      color: #fff;
-      margin-bottom: 12px;
-    }
+  @keyframes reveal {
+    to { opacity: 1; transform: translateY(0); }
+  }
 
-    .step-desc {
-      font-size: 15px;
-      color: var(--muted);
-      line-height: 1.7;
-    }
+  .project::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
 
-    .step-tag {
-      display: inline-block;
-      font-family: var(--font-mono);
-      font-size: 11px;
-      color: var(--green);
-      border: 1px solid rgba(83,252,24,0.3);
-      padding: 4px 10px;
-      margin-top: 20px;
-      letter-spacing: 1px;
-    }
+  .project:hover::before { opacity: 1; }
 
-    /* ── FEATURES ── */
-    .features-bg {
-      background: var(--bg2);
-      border-top: 1px solid var(--border);
-      border-bottom: 1px solid var(--border);
-    }
+  .project-header {
+    padding: 36px 40px 28px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
 
-    .features-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 1px;
-      background: var(--border);
-      border: 1px solid var(--border);
-    }
+  .project-title-group { flex: 1; }
 
-    .feature {
-      background: var(--bg2);
-      padding: 48px 48px;
-      transition: background 0.2s;
-    }
-    .feature:hover { background: var(--bg3); }
+  .project-tag {
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 10px;
+    font-family: var(--mono);
+  }
 
-    .feature-icon {
-      font-size: 28px;
-      margin-bottom: 20px;
-    }
+  .project-name {
+    font-family: var(--serif);
+    font-size: clamp(20px, 3vw, 30px);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: #e0e0f0;
+    margin-bottom: 6px;
+  }
 
-    .feature-title {
-      font-family: var(--font-display);
-      font-size: 24px;
-      letter-spacing: 1px;
-      color: #fff;
-      margin-bottom: 10px;
-    }
+  .project-name .dim { color: var(--text-dim); font-weight: 400; }
 
-    .feature-desc {
-      font-size: 15px;
-      color: var(--muted);
-      line-height: 1.7;
-    }
+  .project-subtitle {
+    font-size: 12px;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+  }
 
-    /* ── TERMINAL / DEMO ── */
-    .terminal {
-      background: #0d1117;
-      border: 1px solid var(--border);
-      border-radius: 0;
-      padding: 32px 40px;
-      max-width: 640px;
-      margin: 64px auto 0;
-    }
+  .badge {
+    font-size: 10px;
+    font-family: var(--mono);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border: 1px solid;
+    white-space: nowrap;
+    align-self: flex-start;
+  }
 
-    .terminal-bar {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 24px;
-    }
-    .terminal-dot {
-      width: 12px; height: 12px;
-      border-radius: 50%;
-    }
-    .terminal-dot:nth-child(1) { background: #ff5f56; }
-    .terminal-dot:nth-child(2) { background: #ffbd2e; }
-    .terminal-dot:nth-child(3) { background: #27c93f; }
+  .badge-stable { border-color: #27ae60; color: #27ae60; }
+  .badge-wip { border-color: var(--accent-dim); color: var(--accent); }
+  .badge-private { border-color: #5a5a72; color: #5a5a72; }
 
-    .terminal-line {
-      font-family: var(--font-mono);
-      font-size: 13px;
-      line-height: 2;
-    }
-    .t-prompt { color: var(--green); }
-    .t-cmd { color: var(--text); }
-    .t-out { color: var(--muted); }
-    .t-success { color: var(--green); }
+  .project-body {
+    padding: 32px 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
 
-    /* ── CTA SECTION ── */
-    .cta-section {
-      padding: 160px 48px;
-      text-align: center;
-      position: relative;
-      overflow: hidden;
-    }
+  .project-desc {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.9;
+    max-width: 640px;
+  }
 
-    .cta-glow {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 800px;
-      height: 400px;
-      background: radial-gradient(ellipse, rgba(83,252,24,0.06) 0%, transparent 70%);
-      pointer-events: none;
-    }
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+  }
 
-    .cta-title {
-      font-family: var(--font-display);
-      font-size: clamp(48px, 8vw, 100px);
-      letter-spacing: 2px;
-      color: #fff;
-      line-height: 0.95;
-      margin-bottom: 24px;
-    }
-    .cta-title span { color: var(--green); }
+  .feature {
+    background: var(--bg2);
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
 
-    .cta-sub {
-      font-size: 16px;
-      color: var(--muted);
-      margin-bottom: 40px;
-      max-width: 480px;
-      margin-left: auto;
-      margin-right: auto;
-    }
+  .feature-label {
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
 
-    .cta-note {
-      font-family: var(--font-mono);
-      font-size: 12px;
-      color: var(--muted);
-      margin-top: 20px;
-      letter-spacing: 0.5px;
-    }
+  .feature-value {
+    font-size: 12px;
+    color: var(--text);
+  }
 
-    /* ── FOOTER ── */
-    footer {
-      border-top: 1px solid var(--border);
-      padding: 40px 48px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
+  .feature-value.hot { color: var(--accent); }
 
-    .footer-logo {
-      font-family: var(--font-display);
-      font-size: 18px;
-      letter-spacing: 2px;
-      color: var(--green);
-    }
+  .links {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    align-items: center;
+    padding-top: 4px;
+  }
 
-    .footer-note {
-      font-family: var(--font-mono);
-      font-size: 12px;
-      color: var(--muted);
-    }
+  .link-btn {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    text-decoration: none;
+    padding: 9px 20px;
+    border: 1px solid;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
 
-    .footer-badge {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      color: var(--green);
-      border: 1px solid rgba(83,252,24,0.3);
-      padding: 4px 10px;
-      letter-spacing: 1px;
-    }
+  .link-btn-primary {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: transparent;
+  }
 
-    /* ── ANIMATIONS ── */
-    @keyframes fadeUp {
-      to { opacity: 1; transform: translateY(0); }
-    }
+  .link-btn-primary:hover {
+    background: var(--accent);
+    color: #fff;
+  }
 
-    /* ── RESPONSIVE ── */
-    @media (max-width: 900px) {
-      nav { padding: 16px 24px; }
-      .hero { padding: 100px 24px 80px; }
-      .hero-stat { left: 24px; gap: 32px; }
-      .section { padding: 80px 24px; }
-      .steps { grid-template-columns: 1fr; gap: 1px; }
-      .features-grid { grid-template-columns: 1fr; }
-      .cta-section { padding: 100px 24px; }
-      footer { padding: 32px 24px; flex-direction: column; gap: 16px; text-align: center; }
-    }
-  </style>
+  .link-btn-secondary {
+    border-color: var(--border-hot);
+    color: var(--text-dim);
+    background: transparent;
+  }
+
+  .link-btn-secondary:hover {
+    border-color: var(--text-dim);
+    color: var(--text);
+  }
+
+  .link-btn-disabled {
+    border-color: var(--border);
+    color: var(--text-dim);
+    cursor: not-allowed;
+    opacity: 0.4;
+  }
+
+  .divider {
+    width: 1px;
+    height: 14px;
+    background: var(--border-hot);
+  }
+
+  .link-note {
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+  }
+
+  /* Terminal block */
+  .terminal {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 20px 24px;
+    font-family: var(--mono);
+    font-size: 12px;
+    overflow-x: auto;
+  }
+
+  .terminal-bar {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--border-hot);
+  }
+
+  .terminal-line { color: var(--text-dim); line-height: 1.8; }
+  .terminal-line .cmd { color: var(--text); }
+  .terminal-line .comment { color: var(--text-dim); opacity: 0.6; }
+  .terminal-line .val { color: var(--accent); }
+  .terminal-line .ok { color: #27ae60; }
+
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 40px;
+    max-width: 900px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: gap;
+    gap: 16px;
+  }
+
+  .footer-left { font-size: 11px; color: var(--text-dim); letter-spacing: 0.15em; }
+  .footer-left a { color: var(--text-dim); text-decoration: none; }
+  .footer-left a:hover { color: var(--accent); }
+
+  .footer-right {
+    font-size: 10px;
+    color: var(--border-hot);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  @media (max-width: 600px) {
+    header, main, footer { padding-left: 20px; padding-right: 20px; }
+    .project-header, .project-body { padding-left: 24px; padding-right: 24px; }
+    .feature-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
 </head>
 <body>
 
-  <!-- NAV -->
-  <nav id="nav">
-    <span class="nav-logo">KDN</span>
-    <a href="https://notify.shashin.studio/auth" class="nav-cta">CONNECT WITH KICK →</a>
-  </nav>
-
-  <!-- HERO -->
-  <section class="hero">
-    <div class="hero-glow"></div>
-    <p class="hero-eyebrow">Kick Discord Notifier</p>
-    <h1 class="hero-title">NEVER<br>MISS A<br><span>STREAM.</span></h1>
-    <p class="hero-sub">
-      Auto-notify your Discord server <strong>the moment you go live on Kick</strong>.
-      One setup. Zero maintenance. Built on Kick's official OAuth 2.1 API.
+<header>
+  <div class="header-inner">
+    <div class="site-label">github.com/<span>eviscerations</span></div>
+    <h1>EVISCERATIONS</h1>
+    <div class="jp-sub">蒸発 — open source projects</div>
+    <p class="header-desc">
+      Solo dev. Montana. Tools for AMD hardware, local AI pipelines, and Windows users who refuse to run NVIDIA.<br>
     </p>
-    <div class="hero-actions">
-      <a href="https://notify.shashin.studio/auth" class="btn-primary">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2 5.5A3.5 3.5 0 015.5 2h13A3.5 3.5 0 0122 5.5v13a3.5 3.5 0 01-3.5 3.5h-13A3.5 3.5 0 012 18.5v-13zM9 7v10l8-5-8-5z"/></svg>
-        Connect with Kick
-      </a>
-      <a href="#how-it-works" class="btn-secondary">How it works ↓</a>
-    </div>
-    <div class="hero-stat">
-      <div class="stat-item">
-        <div class="stat-num">2 MIN</div>
-        <div class="stat-label">Setup time</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-num">0</div>
-        <div class="stat-label">Monthly cost</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-num">AUTO</div>
-        <div class="stat-label">Every stream</div>
-      </div>
-    </div>
-  </section>
+    <nav>
+      <a href="#whisper">whisper-windows-mcp</a>
+      <a href="#rinsei">comfyui-rinsei</a>
+      <a href="https://github.com/eviscerations" target="_blank">github ↗</a>
+    </nav>
+  </div>
+</header>
 
-  <!-- HOW IT WORKS -->
-  <section class="section" id="how-it-works">
-    <p class="section-label">// How it works</p>
-    <h2 class="section-title">THREE STEPS.<br>THAT'S IT.</h2>
-    <div class="steps">
-      <div class="step">
-        <div class="step-num">01</div>
-        <div class="step-title">CONNECT KICK</div>
-        <p class="step-desc">Click the button, authorize with your Kick account via the official OAuth 2.1 flow. No passwords shared, no permissions you don't approve.</p>
-        <span class="step-tag">OAUTH 2.1 + PKCE</span>
-      </div>
-      <div class="step">
-        <div class="step-num">02</div>
-        <div class="step-title">PASTE WEBHOOK</div>
-        <p class="step-desc">Copy a Discord webhook URL from any channel you own and paste it in. Takes 30 seconds. Discord server → channel settings → Integrations → Webhooks.</p>
-        <span class="step-tag">DISCORD WEBHOOK</span>
-      </div>
-      <div class="step">
-        <div class="step-num">03</div>
-        <div class="step-title">GO LIVE.</div>
-        <p class="step-desc">That's it. Every time you go live on Kick, your Discord community gets a notification automatically. No button to press. No forgetting.</p>
-        <span class="step-tag">FULLY AUTOMATIC</span>
-      </div>
-    </div>
-  </section>
+<main>
 
-  <!-- TERMINAL -->
-  <section class="section" style="padding-top: 0;">
-    <div class="terminal">
-      <div class="terminal-bar">
-        <div class="terminal-dot"></div>
-        <div class="terminal-dot"></div>
-        <div class="terminal-dot"></div>
+  <!-- WHISPER -->
+  <section class="project" id="whisper">
+    <div class="project-header">
+      <div class="project-title-group">
+        <div class="project-tag">audio · transcription · mcp</div>
+        <div class="project-name">whisper<span class="dim">-windows-mcp</span></div>
+        <div class="project-subtitle">Native Windows MCP server for local AI transcription</div>
       </div>
-      <div class="terminal-line"><span class="t-prompt">kick-notifier</span> <span class="t-cmd">—</span> <span class="t-out">event received: livestream.status.updated</span></div>
-      <div class="terminal-line"><span class="t-prompt">✓</span> <span class="t-out">signature verified (RSA PKCS1v15)</span></div>
-      <div class="terminal-line"><span class="t-prompt">✓</span> <span class="t-out">broadcaster: your_channel — is_live: true</span></div>
-      <div class="terminal-line"><span class="t-prompt">✓</span> <span class="t-out">discord webhook found</span></div>
-      <div class="terminal-line"><span class="t-success">→ Discord notification sent: "Your Stream Title"</span></div>
+      <span class="badge badge-stable">v2.3.0 stable</span>
     </div>
-  </section>
+    <div class="project-body">
+      <p class="project-desc">
+        A native MCP (Model Context Protocol) server for Windows built on whisper.cpp.
+        Transcribes audio and video files locally in Claude Desktop with Vulkan GPU acceleration,
+        multilingual support, batch processing, and a full privacy architecture for regulated content.
+        No cloud. No CUDA requirement. No macOS assumptions.
+      </p>
 
-  <!-- FEATURES -->
-  <section class="section features-bg" id="features">
-    <p class="section-label">// Features</p>
-    <h2 class="section-title">BUILT TO<br>LAST.</h2>
-    <div class="features-grid">
-      <div class="feature">
-        <div class="feature-icon">🔐</div>
-        <div class="feature-title">OFFICIAL API</div>
-        <p class="feature-desc">Built exclusively on Kick's official OAuth 2.1 API with PKCE. No scraping, no unofficial endpoints, no risk of getting shut down.</p>
+      <div class="feature-grid">
+        <div class="feature">
+          <span class="feature-label">Runtime</span>
+          <span class="feature-value">whisper.cpp + Vulkan</span>
+        </div>
+        <div class="feature">
+          <span class="feature-label">GPU</span>
+          <span class="feature-value hot">AMD · NVIDIA · Intel</span>
+        </div>
+        <div class="feature">
+          <span class="feature-label">Platform</span>
+          <span class="feature-value">Windows 10 / 11</span>
+        </div>
+        <div class="feature">
+          <span class="feature-label">Languages</span>
+          <span class="feature-value">99+ via large-v3</span>
+        </div>
+        <div class="feature">
+          <span class="feature-label">Privacy mode</span>
+          <span class="feature-value hot">metadata-only output</span>
+        </div>
+        <div class="feature">
+          <span class="feature-label">License</span>
+          <span class="feature-value">MIT · Commercial</span>
+        </div>
       </div>
-      <div class="feature">
-        <div class="feature-icon">⚡</div>
-        <div class="feature-title">INSTANT DELIVERY</div>
-        <p class="feature-desc">Kick's webhook event fires the moment you go live. Your Discord channel gets notified automatically — no polling, no delays on our end.</p>
+
+      <div class="terminal">
+        <div class="terminal-bar"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+        <div class="terminal-line"><span class="comment"># install</span></div>
+        <div class="terminal-line"><span class="cmd">npm install -g whisper-windows-mcp</span></div>
+        <div class="terminal-line">&nbsp;</div>
+        <div class="terminal-line"><span class="comment"># claude_desktop_config.json</span></div>
+        <div class="terminal-line"><span class="cmd">"WHISPER_CLI_PATH": <span class="val">"C:\\whisper\\Release\\whisper-cli.exe"</span></span></div>
+        <div class="terminal-line"><span class="cmd">"WHISPER_MODEL": <span class="val">"C:\\whisper\\models\\ggml-large-v3-turbo.bin"</span></span></div>
+        <div class="terminal-line">&nbsp;</div>
+        <div class="terminal-line"><span class="ok">✓ GPU acceleration active — Vulkan</span></div>
       </div>
-      <div class="feature">
-        <div class="feature-icon">🔄</div>
-        <div class="feature-title">SELF-HEALING</div>
-        <p class="feature-desc">Automatic token refresh and subscription health checks every 6 hours. The app keeps itself alive and reconnected without any intervention from you.</p>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">👥</div>
-        <div class="feature-title">MULTI-STREAMER</div>
-        <p class="feature-desc">One app, unlimited streamers. Each Kick account connects independently to their own Discord channel. No shared access, no crossed wires.</p>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">🎨</div>
-        <div class="feature-title">RICH EMBEDS</div>
-        <p class="feature-desc">Discord notifications arrive as rich embeds: stream title, category, direct Watch link. Everything your community needs to join in one click.</p>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">💾</div>
-        <div class="feature-title">PERSISTENT</div>
-        <p class="feature-desc">Setup once, forget about it. Your configuration is stored in a persistent database. Server restarts and updates don't wipe your settings.</p>
+
+      <div class="links">
+        <a class="link-btn link-btn-primary" href="https://github.com/eviscerations/whisper-windows-mcp" target="_blank">GitHub ↗</a>
+        <a class="link-btn link-btn-secondary" href="https://www.npmjs.com/package/whisper-windows-mcp" target="_blank">npm ↗</a>
+        <div class="divider"></div>
+        <span class="link-note">Vulkan binary · Privacy mode · Batch processing · 9 language docs</span>
       </div>
     </div>
   </section>
 
-  <!-- CTA -->
-  <section class="cta-section">
-    <div class="cta-glow"></div>
-    <h2 class="cta-title">YOUR DISCORD.<br><span>ALWAYS NOTIFIED.</span></h2>
-    <p class="cta-sub">Connect your Kick account in under two minutes. Free, forever. We don't store your email address. Ever.</p>
-    <a href="https://notify.shashin.studio/auth" class="btn-primary" style="font-size: 16px; padding: 20px 48px;">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M2 5.5A3.5 3.5 0 015.5 2h13A3.5 3.5 0 0122 5.5v13a3.5 3.5 0 01-3.5 3.5h-13A3.5 3.5 0 012 18.5v-13zM9 7v10l8-5-8-5z"/></svg>
-      Connect with Kick
-    </a>
-    <p class="cta-note">No account required beyond your existing Kick account.</p>
+  <!-- RINSEI -->
+  <section class="project" id="rinsei">
+    <div class="project-header">
+      <div class="project-title-group">
+        <div class="project-tag">amd · rocm · comfyui · gfx1031</div>
+        <div class="project-name">comfyui<span class="dim">-rinsei</span></div>
+        <div class="project-subtitle">Native ROCm acceleration for unsupported RDNA2 on Windows</div>
+      </div>
+      <span class="badge badge-wip">in development</span>
+    </div>
+    <div class="project-body">
+      <p class="project-desc">
+        Native AMD ROCm GPU acceleration for ComfyUI on gfx1031 (RX 6700 XT) and the full
+        gfx103x series on Windows. AMD's official portable crashes on generate for this hardware.
+        This project makes it work — image generation, video generation (Wan 2.2, HunyuanVideo),
+        and the full ComfyUI ecosystem running on hardware AMD refused to support.
+      </p>
+
+      <div class="feature-grid">
+        <div class="feature">
+          <span class="feature-label">Target GPU</span>
+          <span class="feature-value hot">gfx1031 · RX 6700 XT</span>
+        </div>
+        <div class="feature">
+          <span class="feature-label">Series</span>
+          <span class="feature-value">gfx1030 · 1031 · 1032</span>
+        </div>
+        <div class="feature">
+          <span class="feature-label">Platform</span>
+          <span class="feature-value">Windows 10 / 11</span>
+        </div>
+        <div class="feature">
+          <span class="feature-label">Backend</span>
+          <span class="feature-value">TheRock nightly wheels</span>
+        </div>
+        <div class="feature">
+          <span class="feature-label">Video models</span>
+          <span class="feature-value">Wan 2.2 · HunyuanVideo</span>
+        </div>
+        <div class="feature">
+          <span class="feature-label">Image models</span>
+          <span class="feature-value">Flux · Z-Image · SDXL</span>
+        </div>
+      </div>
+
+      <div class="terminal">
+        <div class="terminal-bar"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+        <div class="terminal-line"><span class="comment"># AMD officially dropped gfx1031 Windows HIP SDK support</span></div>
+        <div class="terminal-line"><span class="comment"># gfx1031 is functionally identical to gfx1030 HIP kernels</span></div>
+        <div class="terminal-line">&nbsp;</div>
+        <div class="terminal-line"><span class="cmd">set <span class="val">HSA_OVERRIDE_GFX_VERSION</span>=10.3.0</span></div>
+        <div class="terminal-line"><span class="cmd">set <span class="val">AMDGPU_TARGETS</span>=gfx1031</span></div>
+        <div class="terminal-line">&nbsp;</div>
+        <div class="terminal-line"><span class="ok">✓ ROCm active on RX 6700 XT</span></div>
+      </div>
+
+      <div class="links">
+        <a class="link-btn link-btn-disabled" aria-disabled="true">GitHub — private</a>
+        <div class="divider"></div>
+        <span class="link-note">Public release when stable · RX 6700 XT · 12GB VRAM · Windows</span>
+      </div>
+    </div>
   </section>
 
-  <!-- FOOTER -->
-  <footer>
-    <span class="footer-logo">KDN</span>
-    <span class="footer-note">Built on Kick's official OAuth 2.1 API</span>
-    <span class="footer-badge">KICK DISCORD NOTIFIER</span>
-  </footer>
+</main>
 
-  <script>
-    // Nav scroll effect
-    const nav = document.getElementById('nav');
-    window.addEventListener('scroll', () => {
-      nav.classList.toggle('scrolled', window.scrollY > 40);
-    });
-  </script>
+<footer>
+  <div class="footer-left">
+    <a href="https://github.com/eviscerations" target="_blank">github.com/eviscerations</a>
+    &nbsp;·&nbsp;
+  </div>
+  <div class="footer-right">Montana · AMD · local-first</div>
+</footer>
 
 </body>
 </html>
